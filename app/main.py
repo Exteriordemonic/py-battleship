@@ -1,18 +1,22 @@
 from math import gcd
 from typing import TypeAlias
 
+from enum import Enum
 
-SYMBOLS = {
-    "wave": "~",
-    "ship": "□",
-    "hit": "*",
-    "drowned": "x",
-}
-MESSAGES = {
-    "hit": "Hit!",
-    "miss": "Miss!",
-    "sunk": "Sunk!",
-}
+
+class Symbol(Enum):
+    WAVE = "~"
+    SHIP = "□"
+    HIT = "*"
+    DROWNED = "x"
+
+
+class Message(Enum):
+    HIT = "Hit!"
+    MISS = "Miss!"
+    SUNK = "Sunk!"
+
+
 BOARD_SIZE = 10
 
 Coord: TypeAlias = tuple[int, int]
@@ -87,8 +91,7 @@ class Battleship:
     def __init__(self, ships: list[ShipDefinition]) -> None:
         self.ships = [Ship(start, end) for start, end in ships]
         self.board = [
-            [SYMBOLS["wave"] for _ in range(BOARD_SIZE)]
-            for _ in range(BOARD_SIZE)
+            [Symbol.WAVE for _ in range(BOARD_SIZE)] for _ in range(BOARD_SIZE)
         ]
         self.field: dict[Coord, Ship] = {}
 
@@ -97,22 +100,32 @@ class Battleship:
     def place_ships(self) -> None:
         for ship in self.ships:
             for deck in ship.decks:
-                self.board[deck.row][deck.column] = SYMBOLS["ship"]
+                self.board[deck.row][deck.column] = Symbol.SHIP
                 self.field[(deck.row, deck.column)] = ship
 
     def fire(self, location: Coord) -> str:
         ship = self.field.get(location)
         if ship:
-            ship.fire(*location)
+            self._hit_deck(ship, location)
             if ship.is_drowned:
-                return MESSAGES["sunk"]
-
-            return MESSAGES["hit"]
-
-        return MESSAGES["miss"]
+                self._sunk_ship(ship)
+                return Message.SUNK.value
+            return Message.HIT.value
+        return Message.MISS.value
 
     def print_field(self) -> None:
         for row in self.board:
             for cell in row:
-                print(cell, end=" ")
+                print(cell.value, end=" ")
             print()
+
+    def _paint_field(self, location: Coord, symbol: Symbol) -> None:
+        self.board[location[0]][location[1]] = symbol
+
+    def _sunk_ship(self, ship: Ship) -> None:
+        for deck in ship.decks:
+            self._paint_field((deck.row, deck.column), Symbol.DROWNED)
+
+    def _hit_deck(self, ship: Ship, location: Coord) -> None:
+        ship.fire(*location)
+        self._paint_field(location, Symbol.HIT)
